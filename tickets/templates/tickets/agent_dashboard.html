@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Панель агента Helpdesk</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        background-color: #f0f2f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .page-container {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+      }
+      .header {
+        background-color: #1d3557;
+        color: white;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.5em;
+        color: white;
+      }
+      .header .user-info {
+        font-size: 0.9em;
+      }
+      .header .user-info a {
+        color: #a9d6e5;
+        text-decoration: none;
+        margin-left: 15px;
+      }
+      .header .user-info a:hover {
+        text-decoration: underline;
+      }
+      .main-content {
+        flex: 1;
+        max-width: 1100px;
+        margin: 30px auto;
+        padding: 25px 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      nav.main-nav {
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      nav.main-nav a {
+        margin-right: 20px;
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+        padding: 8px 0;
+        display: inline-block;
+      }
+      nav.main-nav a:hover,
+      nav.main-nav a.active {
+        color: #0056b3;
+        border-bottom: 2px solid #0056b3;
+      }
+      .content-title {
+        color: #1d3557;
+        margin-top: 0;
+        margin-bottom: 1.2em;
+        font-size: 1.8em;
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 0.85em;
+        color: #6c757d;
+        background-color: #e9ecef;
+        border-top: 1px solid #dee2e6;
+      }
+      .button-link {
+        display: inline-block;
+        padding: 8px 15px;
+        background-color: #28a745;
+        color: white;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+      .button-link:hover {
+        background-color: #218838;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <header class="header">
+        <h1>Helpdesk - Панель Агента</h1>
+        <div class="user-info">
+          Добро пожаловать, <strong>{{ agent_name }}</strong>!
+          <a href="{% url 'admin:index' %}" target="_blank">Админ-панель</a>
+          <form
+            method="post"
+            action="{% url 'tickets:agent_logout' %}"
+            style="display: inline; margin-left: 15px"
+          >
+            {% csrf_token %}
+            <button type="submit" class="logout-button">Выйти</button>
+          </form>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <nav class="main-nav">
+          <a href="{% url 'tickets:agent_dashboard' %}" class="active"
+            >Панель управления</a
+          >
+          <a href="{% url 'tickets:agent_ticket_list' %}">Все заявки</a>
+          <a href="{% url 'tickets:agent_my_ticket_list' %}">Мои заявки</a>
+        </nav>
+
+        <h2 class="content-title">Обзор</h2>
+        <p>Это главная страница для агентов технической поддержки.</p>
+        <p>
+          В следующих шагах мы добавим сюда список заявок, фильтры и возможность
+          управлять заявками.
+        </p>
+
+        <hr style="margin: 30px 0" />
+
+        <h3>Быстрые действия:</h3>
+        <p>
+          <a
+            href="{% url 'tickets:select_ticket_category' %}"
+            class="button-link"
+            style="background-color: #007bff"
+            >Создать заявку (от имени пользователя)</a
+          >
+        </p>
+        <p>
+          <a
+            href="{% url 'tickets:check_ticket_status' %}"
+            class="button-link"
+            style="background-color: #6c757d"
+            >Проверить статус (интерфейс пользователя)</a
+          >
+        </p>
+      </main>
+
+      <footer class="footer">
+        © {% now "Y" %} Helpdesk System. Все права защищены (или не очень).
+      </footer>
+    </div>
+  </body>
+</html>

@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <title>
+      {{ page_title|default:"Список заявок" }} - Панель Агента Helpdesk
+    </title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        margin: 0;
+        background-color: #f0f2f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .page-container {
+        display: flex;
+        min-height: 100vh;
+        flex-direction: column;
+      }
+      .header {
+        background-color: #1d3557;
+        color: white;
+        padding: 15px 30px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .header h1 {
+        margin: 0;
+        font-size: 1.5em;
+        color: white;
+      }
+      .header .user-info {
+        font-size: 0.9em;
+        display: flex;
+        align-items: center;
+      }
+      .header .user-info a,
+      .header .user-info .logout-button {
+        color: #a9d6e5;
+        text-decoration: none;
+        margin-left: 15px;
+      }
+      .header .user-info a:hover,
+      .header .user-info .logout-button:hover {
+        text-decoration: underline;
+        color: #ffffff;
+      }
+      .header .user-info .logout-button {
+        background: none;
+        border: none;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: inherit;
+        vertical-align: baseline;
+      }
+      .main-content {
+        flex: 1;
+        max-width: 1100px; /* Можно увеличить, если нужно шире таблица */
+        margin: 30px auto;
+        padding: 25px 30px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      nav.main-nav {
+        margin-bottom: 25px;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #e0e0e0;
+      }
+      nav.main-nav a {
+        margin-right: 20px;
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+        padding: 8px 0;
+        display: inline-block;
+      }
+      nav.main-nav a:hover,
+      nav.main-nav a.active {
+        color: #0056b3;
+        border-bottom: 2px solid #0056b3;
+      }
+      .content-title {
+        color: #1d3557;
+        margin-top: 0;
+        margin-bottom: 1.2em;
+        font-size: 1.8em;
+      }
+      .footer {
+        text-align: center;
+        padding: 20px;
+        font-size: 0.85em;
+        color: #6c757d;
+        background-color: #e9ecef;
+        border-top: 1px solid #dee2e6;
+      }
+
+      /* Стили для таблицы заявок */
+      .ticket-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 20px;
+        font-size: 0.9em;
+      }
+      .ticket-table th,
+      .ticket-table td {
+        border: 1px solid #ddd;
+        padding: 10px 12px;
+        text-align: left;
+        vertical-align: top;
+      }
+      .ticket-table th {
+        background-color: #f8f9fa;
+        color: #495057;
+        font-weight: 600;
+      }
+      .ticket-table tbody tr:nth-child(even) {
+        background-color: #fdfdfe;
+      }
+      .ticket-table tbody tr:hover {
+        background-color: #e9ecef;
+      }
+      .ticket-table a {
+        color: #0056b3;
+        text-decoration: none;
+      }
+      .ticket-table a:hover {
+        text-decoration: underline;
+      }
+      /* Классы для приоритетов - убедитесь, что ваши коды приоритетов (priority.code) 
+           соответствуют этим именам в нижнем регистре (например, 'low', 'medium', 'high') */
+      .priority-low {
+        color: green;
+        font-weight: bold;
+      }
+      .priority-medium {
+        color: orange;
+        font-weight: bold;
+      }
+      .priority-high {
+        color: red;
+        font-weight: bold;
+      }
+      .priority-urgent {
+        color: darkred;
+        font-weight: bold;
+        background-color: #ffe0e0;
+      } /* Пример для очень высокого */
+
+      .no-tickets {
+        padding: 20px;
+        text-align: center;
+        color: #6c757d;
+        font-style: italic;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <header class="header">
+        <h1>Helpdesk - Панель Агента</h1>
+        <div class="user-info">
+          Добро пожаловать,
+          <strong>{{ request.user.get_full_name }}</strong>!
+          <a href="{% url 'admin:index' %}" target="_blank">Админ-панель</a>
+          <form
+            method="post"
+            action="{% url 'tickets:agent_logout' %}"
+            style="display: inline"
+          >
+            {% csrf_token %}
+            <button type="submit" class="logout-button">Выйти</button>
+          </form>
+        </div>
+      </header>
+
+      <main class="main-content">
+        <nav class="main-nav">
+          <a href="{% url 'tickets:agent_dashboard' %}" 
+             class="{% if request.resolver_match.url_name == 'agent_dashboard' or request.resolver_match.url_name == 'agent_home' %}active{% endif %}">
+             Панель управления
+          </a>
+      
+          {% if request.user.is_staff %}
+              {% if request.user.role == 'admin' %}
+                  {# Ссылки для админа #}
+                  <a href="{% url 'tickets:agent_ticket_list' %}" 
+                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and not filter_line %}active{% endif %}">
+                     Все заявки (Админ)
+                  </a>
+                  <a href="{% url 'tickets:agent_ticket_list' %}?line=1" 
+                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and filter_line == '1' %}active{% endif %}">
+                     Заявки 1-й линии (Админ)
+                  </a>
+                  <a href="{% url 'tickets:agent_ticket_list' %}?line=2" 
+                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and filter_line == '2' %}active{% endif %}">
+                     Заявки 2-й линии (Админ)
+                  </a>
+              {% elif request.user.is_first_line %}
+                  <a href="{% url 'tickets:agent_ticket_list' %}" 
+                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
+                     Заявки 1-й линии
+                  </a>
+              {% elif request.user.is_second_line %}
+                  <a href="{% url 'tickets:agent_ticket_list' %}" 
+                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
+                     Заявки 2-й линии
+                  </a>
+              {% elif not request.user.support_line %} {# Агент без линии, но не админ #}
+                   <a href="{% url 'tickets:agent_ticket_list' %}"
+                      class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
+                      Доступные заявки
+                   </a>
+              {% endif %}
+          {% endif %}
+          
+          <a href="{% url 'tickets:agent_my_ticket_list' %}" 
+             class="{% if request.resolver_match.url_name == 'agent_my_ticket_list' %}active{% endif %}">
+             Мои заявки
+          </a>
+      </nav>
+        </nav>
+
+        <h2 class="content-title">{{ page_title|default:"Список заявок" }}</h2>
+
+        {% if ticket_list %}
+        <table class="ticket-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Тема</th>
+              <th>Статус</th>
+              <th>Приоритет</th>
+              <th>Категория</th>
+              <th>Заявитель</th>
+              <th>Исполнитель</th>
+              <th>Создана</th>
+              <th>Обновлена</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for ticket in ticket_list %}
+            <tr>
+              <td>
+                <a
+                  href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}"
+                  >{{ ticket.ticket_id_display }}</a
+                >
+              </td>
+              <td>
+                <a
+                  href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}"
+                  >{{ ticket.title|truncatechars:50 }}</a
+                >
+              </td>
+              <td>{{ ticket.status.name }}</td>
+              <td>
+                {% if ticket.priority %}
+
+                <span
+                  class="priority-{{ ticket.priority.code|lower|default:'normal' }}"
+                  >{{ ticket.priority.name }}</span
+                >
+                {% else %} - {% endif %}
+              </td>
+              <td>{{ ticket.category.name }}</td>
+              <td>{{ ticket.reporter_name }}</td>
+              <td>{{ ticket.assignee.get_full_name }}</td>
+              <td>{{ ticket.created_at|date:"d.m.Y H:i" }}</td>
+              <td>{{ ticket.updated_at|date:"d.m.Y H:i" }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <p class="no-tickets">Заявок в этом списке пока нет.</p>
+        {% endif %}
+      </main>
+
+      <footer class="footer">© {% now "Y" %} Helpdesk System.</footer>
+    </div>
+  </body>
+</html>

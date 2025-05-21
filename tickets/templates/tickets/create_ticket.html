@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Создать заявку в IT-поддержку</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        margin: 20px;
+        background-color: #f0f2f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 750px;
+        margin: 40px auto;
+        background: white;
+        padding: 25px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      h1 {
+        color: #1d3557; /* Темно-синий */
+        margin-bottom: 1em;
+        text-align: center;
+        font-size: 1.8em;
+      }
+      form div.form-field {
+        /* Обертка для каждого поля + метки + ошибки */
+        margin-bottom: 18px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #495057;
+      }
+      input[type="text"],
+      input[type="email"],
+      textarea,
+      select {
+        width: 100%; /* Полная ширина */
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 1em;
+        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      }
+      textarea {
+        resize: vertical;
+        min-height: 100px;
+      }
+      input[type="text"]:focus,
+      input[type="email"]:focus,
+      textarea:focus,
+      select:focus {
+        border-color: #80bdff;
+        outline: 0;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      button[type="submit"] {
+        background-color: #007bff; /* Ярко-синий */
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        transition: background-color 0.2s;
+        display: block; /* Чтобы кнопка занимала всю ширину, если нужно */
+        width: 100%;
+        margin-top: 10px;
+      }
+      button[type="submit"]:hover {
+        background-color: #0056b3; /* Темнее синий */
+      }
+      .errorlist {
+        /* Стили для ошибок валидации формы */
+        color: #721c24;
+        list-style-type: none;
+        padding-left: 0;
+        margin-top: 4px; /* Отступ от поля */
+        margin-bottom: 0;
+        font-size: 0.85em;
+      }
+      .messages {
+        /* Стили для сообщений Django (success, error, etc.) */
+        list-style-type: none;
+        padding: 0;
+        margin: 0 0 20px 0;
+      }
+      .messages li {
+        padding: 12px 15px;
+        margin-bottom: 10px;
+        border-radius: 4px;
+        font-weight: 500;
+      }
+      .messages li.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+      .messages li.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+      .nav-links {
+        margin-bottom: 25px;
+        text-align: center;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+      }
+      .nav-links a {
+        margin: 0 10px;
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+        padding: 5px 0;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+        color: #0056b3;
+      }
+      .help-text {
+        font-size: 0.8em;
+        color: #6c757d;
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="nav-links">
+        <a href="{% url 'tickets:select_ticket_category' %}"
+          >Создать новую заявку</a
+        >
+        <a href="{% url 'tickets:check_ticket_status' %}"
+          >Проверить статус заявки</a
+        >
+      </div>
+
+      <h1>Создать новую заявку в IT-поддержку</h1>
+
+      {% if messages %}
+      <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %} {% for field in form %}
+        <div class="form-field">
+          {{ field.label_tag }} {{ field }} {% if field.help_text %}
+          <div class="help-text">{{ field.help_text }}</div>
+          {% endif %} {% if field.errors %} {{ field.errors }} {% endif %}
+        </div>
+        {% endfor %}
+
+        <button type="submit">Отправить заявку</button>
+      </form>
+    </div>
+  </body>
+</html>

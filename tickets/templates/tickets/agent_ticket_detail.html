@@ -1,0 +1,290 @@
+{% load ticket_extras %} {# Если используешь кастомный фильтр |filename #}
+{% load static %} {# Если будешь использовать статические файлы для CSS/JS #}
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8" />
+    <title>{{ page_title|default:"Детали заявки" }} - Панель Агента Helpdesk</title>
+    <style>
+      /* Общие стили */
+      body {font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; margin: 0; background-color: #f0f2f5; color: #333; line-height: 1.6;}
+      .page-container {display: flex; min-height: 100vh; flex-direction: column;}
+      .header {background-color: #1d3557; color: white; padding: 15px 30px; box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1); display: flex; justify-content: space-between; align-items: center;}
+      .header h1 {margin: 0; font-size: 1.5em; color: white;}
+      .header .user-info {font-size: 0.9em; display: flex; align-items: center;}
+      .header .user-info a, .header .user-info .logout-button {color: #a9d6e5; text-decoration: none; margin-left: 15px;}
+      .header .user-info a:hover, .header .user-info .logout-button:hover {text-decoration: underline; color: #ffffff;}
+      .header .user-info .logout-button {background: none; border: none; padding: 0; cursor: pointer; font-family: inherit; font-size: inherit; vertical-align: baseline;}
+      .main-content-wrapper { flex: 1; } /* Обертка для основного контента и вынесенных комментариев */
+      .main-content {max-width: 900px; margin: 30px auto; padding: 25px 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);}
+      nav.main-nav {margin-bottom: 25px; padding-bottom: 15px; border-bottom: 1px solid #e0e0e0;}
+      nav.main-nav a {margin-right: 20px; text-decoration: none; color: #007bff; font-weight: 500; padding: 8px 0; display: inline-block;}
+      nav.main-nav a:hover, nav.main-nav a.active {color: #0056b3; border-bottom: 2px solid #0056b3;}
+      .content-title {color: #1d3557; margin-top: 0; margin-bottom: 0.8em; font-size: 1.8em;}
+      .footer {text-align: center; padding: 20px; font-size: 0.85em; color: #6c757d; background-color: #e9ecef; border-top: 1px solid #dee2e6;}
+
+      /* Стили для детальной страницы тикета */
+      .ticket-detail-grid {display: grid; grid-template-columns: 1fr; gap: 25px;}
+      @media (min-width: 800px) {.ticket-detail-grid {grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);}}
+      .ticket-main-info, .ticket-sidebar {display: flex; flex-direction: column; gap: 20px;}
+      .ticket-section {background-color: #f8f9fa; padding: 20px; border-radius: 6px; border: 1px solid #e9ecef;}
+      .ticket-section h3, .ticket-section h4 {margin-top: 0; color: #343a40; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; font-size: 1.2em;}
+      .ticket-section h4 {font-size: 1.1em; margin-bottom: 0.5em;}
+      .ticket-info p {margin: 10px 0; font-size: 0.95em;}
+      .ticket-info strong {color: #495057; min-width: 150px; display: inline-block; font-weight: 600; vertical-align: top;} /* Увеличил min-width */
+      .description-box {white-space: pre-wrap; background-color: #fff; padding: 12px; border: 1px solid #dee2e6; border-radius: 4px; margin-top: 5px; font-family: "Courier New", Courier, monospace; font-size: 0.9em; max-height: 300px; overflow-y: auto; line-height: 1.5;}
+      
+      .comments-list .comment-item {background-color: #fff; border: 1px solid #ddd; border-radius: 5px; margin-bottom: 15px; padding: 12px 15px;}
+      .comment-meta {font-size: 0.85em; color: #555; margin-bottom: 8px; padding-bottom: 5px; border-bottom: 1px dotted #eee;}
+      .comment-meta strong {color: #1d3557; min-width: auto; font-weight: bold;}
+      .comment-body {white-space: pre-wrap; font-size: 0.95em; line-height: 1.5;}
+      .comment-internal-note {font-style: italic; color: #6c757d; font-size: 0.8em; margin-top: 5px; background-color: #fff8e1; padding: 3px 6px; border-left: 3px solid #ffc107;}
+      .attachments-list ul {list-style-type: none; padding-left: 0; margin-top: 10px;}
+      .attachments-list li {margin-bottom: 8px; font-size: 0.9em;}
+      .attachments-list a {text-decoration: none; color: #0056b3;}
+      .attachments-list a:hover {text-decoration: underline;}
+      
+      .ticket-history-accordion summary {font-weight: bold; cursor: pointer; padding: 10px 0; font-size: 1.1em; color: #343a40; list-style: none; display: flex; justify-content: space-between; align-items: center;}
+      .ticket-history-accordion summary::-webkit-details-marker {display: none;}
+      .ticket-history-accordion summary span {font-size: 0.8em; transition: transform 0.2s;}
+      .ticket-history-accordion[open] summary span {transform: rotate(180deg);}
+      .history-log-content {padding-top: 10px; border-top: 1px solid #e0e0e0;}
+      .history-log-list {list-style-type: none; padding-left: 0; font-size: 0.9em;}
+      .history-log-list li {padding: 6px 0; border-bottom: 1px dotted #eee; line-height: 1.5;}
+      .history-log-list li:last-child {border-bottom: none;}
+      .log-date {color: #6c757d;}
+      .log-author {font-weight: 500; color: #495057;}
+      .history-summary-static {font-weight: bold; padding: 10px 0; font-size: 1.1em; color: #343a40;}
+
+      .placeholder-text {color: #6c757d; font-style: italic;}
+      .form-field-group {margin-bottom: 10px;} /* Добавил общий класс для групп полей формы */
+      .form-field-group label {display: block; margin-bottom: 5px; font-weight: bold;}
+      .form-field-group select.form-select, .form-field-group .form-control, .add-comment-form textarea {width: 100%; box-sizing: border-box; padding: 8px 12px; min-height: 38px; border: 1px solid #ced4da; border-radius: 4px;}
+      .add-comment-form textarea {margin-bottom: 10px;}
+      .action-button {padding: 8px 15px; margin-right: 10px; margin-bottom:10px; border-radius: 4px; border: 1px solid transparent; cursor: pointer; font-weight: 500; width: 100%; text-align: center;}
+      .action-button:disabled {background-color: #e9ecef; color: #6c757d; cursor: not-allowed;}
+      .action-button-primary {background-color: #007bff; color: white; border-color: #007bff;}
+      .action-button-primary:hover:not(:disabled) {background-color: #0056b3; border-color: #0056b3;}
+      .errorlist {list-style: none; padding: 0; color: #721c24; font-size: 0.85em; margin-top: 4px; margin-bottom: 0;}
+      .errorlist li {padding: 2px 0;}
+      
+      .ticket-fullwidth-comments-section {max-width: 900px; margin: 30px auto; padding: 25px 30px; background: white; border-radius: 8px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);}
+      .ticket-fullwidth-comments-section h3 {margin-top: 0; color: #343a40; border-bottom: 1px solid #dee2e6; padding-bottom: 10px; font-size: 1.5em; margin-bottom: 20px;}
+      
+      /* Стили для сообщений Django */
+      ul.messages {list-style: none; padding: 0; margin: 0 0 20px 0;}
+      ul.messages li {padding: 10px 15px; margin-bottom: 10px; border-radius: 4px; border: 1px solid transparent; font-weight: 500;}
+      ul.messages li.success {background-color: #d4edda; color: #155724; border-color: #c3e6cb;}
+      ul.messages li.error {background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;}
+      ul.messages li.info {background-color: #d1ecf1; color: #0c5460; border-color: #bee5eb;}
+      ul.messages li.warning {background-color: #fff3cd; color: #856404; border-color: #ffeeba;}
+    </style>
+  </head>
+  <body>
+    <div class="page-container">
+      <header class="header">
+        <h1>Helpdesk - Панель Агента</h1>
+        <div class="user-info">
+          Добро пожаловать, <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>!
+          <a href="{% url 'admin:index' %}" target="_blank">Админ-панель</a>
+          <form method="post" action="{% url 'tickets:agent_logout' %}" style="display: inline;">{% csrf_token %}<button type="submit" class="logout-button">Выйти</button></form>
+        </div>
+      </header>
+
+    <div class="main-content-wrapper"> {# Обертка для основного контента и вынесенных комментариев #}
+      <main class="main-content">
+        <nav class="main-nav">
+            <a href="{% url 'tickets:agent_dashboard' %}" class="{% if request.resolver_match.url_name == 'agent_dashboard' or request.resolver_match.url_name == 'agent_home' %}active{% endif %}">Панель управления</a>
+            <a href="{% url 'tickets:agent_ticket_list' %}" class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">Все заявки</a>
+            <a href="{% url 'tickets:agent_my_ticket_list' %}" class="{% if request.resolver_match.url_name == 'agent_my_ticket_list' %}active{% endif %}">Мои заявки</a>
+        </nav>
+
+        <h2 class="content-title">{{ page_title }} <small style="font-size: 0.7em; color: #6c757d;">(Просмотр)</small></h2>
+        
+        {% if messages %}
+            <ul class="messages">{% for message in messages %}<li class="{{ message.tags }}">{{ message }}</li>{% endfor %}</ul>
+        {% endif %}
+
+        <div class="ticket-detail-grid">
+          <div class="ticket-main-info">
+            <section class="ticket-section ticket-info">
+              <h3>Информация о заявке</h3>
+              <p><strong>ID Заявки:</strong> {{ ticket.ticket_id_display }}</p>
+              <p><strong>Тема:</strong> {{ ticket.title }}</p>
+              <p><strong>Статус:</strong> <span style="background-color: {{ticket.status.color|default:'#777'}}; padding: 3px 8px; border-radius: 4px; color: white; text-shadow: 0 0 2px rgba(0,0,0,0.5); font-size: 0.9em;">{{ ticket.status.name }}</span></p>
+              <p><strong>Приоритет:</strong> {% if ticket.priority %}<span style="color: {{ticket.priority.color|default:'inherit'}}; font-weight: bold;">{{ ticket.priority.name }}</span>{% else %}Не назначен{% endif %}</p>
+              <p><strong>Категория:</strong> {{ ticket.category.name|default:"Не указана" }}</p>
+              <p><strong>Уровень тикета:</strong> L{{ ticket.ticket_level }}</p>
+              <p><strong>Исполнитель:</strong> {% if ticket.assignee %}{{ ticket.assignee.get_full_name|default:ticket.assignee.username }}{% else %}Не назначен{% endif %}</p>
+              <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 15px 0;"/>
+              <p><strong>Заявитель:</strong> {{ ticket.reporter_name }} ({{ ticket.reporter_email }})</p>
+              {% if ticket.reporter_phone %}<p><strong>Телефон:</strong> {{ ticket.reporter_phone }}</p>{% endif %}
+              {% if ticket.reporter_building %}<p><strong>Корпус:</strong> {{ ticket.reporter_building }}</p>{% endif %}
+              {% if ticket.reporter_room %}<p><strong>Кабинет:</strong> {{ ticket.reporter_room }}</p>{% endif %}
+              {% if ticket.reporter_department %}<p><strong>Подразделение:</strong> {{ ticket.reporter_department }}</p>{% endif %}
+              
+              {# Отображение кастомных полей тикета (только НЕ стандартных) #}
+              {% if custom_fields_display %}
+                <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 15px 0"/>
+                <h4>Дополнительная информация по категории:</h4>
+                {% for custom_field in custom_fields_display %}
+                    <p><strong>{{ custom_field.label }}:</strong> {{ custom_field.value }}</p>
+                {% endfor %}
+              {% endif %}
+
+              <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 15px 0;"/>
+              <p><strong>Дата создания:</strong> {{ ticket.created_at|date:"d.m.Y H:i:s" }}</p>
+              <p><strong>Последнее обновление:</strong> {{ ticket.updated_at|date:"d.m.Y H:i:s" }}</p>
+              {% if ticket.resolved_at %}<p><strong>Дата решения:</strong> {{ ticket.resolved_at|date:"d.m.Y H:i:s" }}</p>{% endif %}
+              {% if ticket.closed_at %}<p><strong>Дата закрытия:</strong> {{ ticket.closed_at|date:"d.m.Y H:i:s" }}</p>{% endif %}
+              
+              <h4>Описание проблемы:</h4>
+              <div class="description-box">{{ ticket.description }}</div>
+            </section>
+
+            {% if ticket_attachments_list %}
+            <section class="ticket-section ticket-attachments-section">
+              <h3>Файлы, прикрепленные к заявке ({{ ticket_attachments_list|length }}):</h3>
+              <ul class="attachments-list">
+                {% for attachment in ticket_attachments_list %}
+                <li>
+                  <a href="{{ attachment.file.url }}" target="_blank">{{ attachment.file.name|filename }}</a>
+                  ({{ attachment.file.size|filesizeformat }})
+                  <span style="color: #6c757d; font-size: 0.9em;">- {{ attachment.uploaded_at|date:"d.m.Y H:i" }}</span>{% spaceless %}
+                  {% if attachment.uploaded_by_name_display %}
+                    <span style="color: #6c757d; font-size: 0.9em;">({{ attachment.uploaded_by_name_display }})</span>
+                  {% endif %}{% endspaceless %}
+                </li>
+                {% endfor %}
+              </ul>
+            </section>
+            {% endif %}
+
+            {% if ticket_history_log %}
+            <details class="ticket-section ticket-history-accordion">
+                <summary class="history-summary">История изменений заявки ({{ ticket_history_log|length }}) <span>▼</span></summary>
+                <div class="history-log-content">
+                    <ul class="history-log-list">
+                        {% for log_entry in ticket_history_log %}
+                        <li>
+                          <span class="log-date">{{ log_entry.created_at|date:"d.m.Y H:i" }}</span> - 
+                          <span class="log-author">{% if log_entry.author_agent %}{{ log_entry.author_agent.get_full_name|default:log_entry.author_agent.username }}{% else %}Система{% endif %}</span>:
+                          <span class="log-body">{{ log_entry.body }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            </details>
+            {% else %}
+            <div class="ticket-section ticket-history-accordion">
+                 <p class="history-summary-static">История изменений заявки (0)</p>
+                 <p class="placeholder-text" style="padding-top:10px;">Записей в истории нет.</p>
+            </div>
+            {% endif %}
+          </div> {# Конец .ticket-main-info #}
+
+          <aside class="ticket-sidebar">
+            <section class="ticket-section ticket-actions">
+              <h3>Действия с заявкой</h3>
+              {% if status_form %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;"> {% csrf_token %}
+                <div class="form-field-group">{{ status_form.status.label_tag }}{{ status_form.status }}{% if status_form.status.errors %}<div class="errorlist">{{ status_form.status.errors }}</div>{% endif %}</div>
+                <button type="submit" name="submit_status" class="action-button action-button-primary">Изменить статус</button>
+              </form>
+              {% endif %}
+
+              {% if priority_form %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;"> {% csrf_token %}
+                <div class="form-field-group">{{ priority_form.priority.label_tag }}{{ priority_form.priority }}{% if priority_form.priority.errors %}<div class="errorlist">{{ priority_form.priority.errors }}</div>{% endif %}</div>
+                <button type="submit" name="submit_priority" class="action-button action-button-primary">Изменить приоритет</button>
+              </form>
+              {% endif %}
+
+              {# Форму изменения категории мы убрали, если category_form не передается или None #}
+              {# {% if category_form %} ... {% endif %} #}
+
+              {% if assign_agent_form %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;"> {% csrf_token %}
+                <div class="form-field-group">{{ assign_agent_form.assignee.label_tag }}{{ assign_agent_form.assignee }}{% if assign_agent_form.assignee.errors %}<div class="errorlist">{{ assign_agent_form.assignee.errors }}</div>{% endif %}</div>
+                <button type="submit" name="submit_reassign_agent" class="action-button action-button-primary">Назначить исполнителя</button>
+              </form>
+              {% endif %}
+              
+              {% if can_take_ticket %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;">{% csrf_token %}<button type="submit" name="take_ticket" class="action-button" style="background-color: #28a745; color:white;">Взять в работу</button></form>
+              {% elif ticket.assignee %}
+                 <p style="font-size:0.9em; color: #6c757d;">Заявка назначена на: <strong>{{ ticket.assignee.get_full_name|default:ticket.assignee.username }}</strong>{% if ticket.assignee == request.user %} (это вы){% endif %}</p>
+              {% endif %}
+
+              {% if can_escalate_to_l2 %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;">{% csrf_token %}<button type="submit" name="escalate_to_l2" class="action-button" style="background-color: #ffc107; color: #212529;">Передать на 2-ю линию</button></form>
+              {% endif %}
+
+              {% if can_de_escalate_to_l1 %}
+              <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" style="margin-bottom: 15px;">{% csrf_token %}<button type="submit" name="de_escalate_to_l1" class="action-button" style="background-color: #6c757d; color:white;">Вернуть на 1-ю линию</button></form>
+              {% endif %}
+            </section>
+
+            <section class="ticket-section add-comment-form">
+                <h4>Добавить комментарий</h4>
+                <form method="post" action="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}" enctype="multipart/form-data">
+                  {% csrf_token %}
+                  {{ comment_form.as_p }}
+                  <button type="submit" name="submit_comment" class="action-button action-button-primary" style="width:100%; margin-top:10px;">Отправить комментарий</button>
+                </form>
+            </section>
+          </aside>
+        </div> {# Конец .ticket-detail-grid #}
+      </main> {# Конец .main-content #}
+
+      {# Секция комментариев, вынесенная под основной контент #}
+      <section class="ticket-fullwidth-comments-section">
+          <h3>Комментарии ({{ comments_list|length }})</h3>
+          {% if comments_list %}
+          <div class="comments-list">
+            {% for comment in comments_list %}
+            <div class="comment-item">
+              <p class="comment-meta">
+                <strong>{{ comment.author_name_display|default:"Аноним" }}</strong>{% if comment.author_agent %} (Агент){% endif %} пишет ({{ comment.created_at|date:"d.m.Y H:i" }}):
+              </p>
+              <div class="comment-body">{{ comment.body }}</div>
+              {% if comment.is_internal %}<p class="comment-internal-note">Внутренний комментарий</p>{% endif %}
+              {% if comment.attachments.all %}
+              <div class="attachments-list" style="margin-left: 15px; margin-top: 10px">
+                <strong>Файлы к комментарию:</strong>
+                <ul>
+                  {% for comment_attachment in comment.attachments.all %}
+                  <li><a href="{{ comment_attachment.file.url }}" target="_blank">{{ comment_attachment.file.name|filename }}</a> ({{ comment_attachment.file.size|filesizeformat }})</li>
+                  {% endfor %}
+                </ul>
+              </div>
+              {% endif %}
+            </div>
+            {% endfor %}
+          </div>
+          {% else %}
+            <p class="placeholder-text">Обсуждений по этой заявке пока нет.</p>
+          {% endif %}
+      </section>
+    </div> {# Конец .main-content-wrapper, если он был #}
+
+      <footer class="footer">© {% now "Y" %} Helpdesk System.</footer>
+    </div> {# Конец .page-container #}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const commentTextarea = document.querySelector('.add-comment-form textarea[name="body"]');
+            const commentSubmitButton = document.querySelector('.add-comment-form form button[type="submit"][name="submit_comment"]');
+            if (commentTextarea && commentSubmitButton) {
+                commentTextarea.addEventListener('keydown', function(event) {
+                    if (event.ctrlKey && event.key === 'Enter') {
+                        event.preventDefault(); 
+                        commentSubmitButton.click();
+                    }
+                });
+            }
+        });
+    </script>
+  </body>
+</html>

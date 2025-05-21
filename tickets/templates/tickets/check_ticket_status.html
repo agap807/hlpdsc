@@ -1,0 +1,334 @@
+{% load l10n %} {% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Проверить статус заявки</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+        margin: 20px;
+        background-color: #f0f2f5;
+        color: #333;
+        line-height: 1.6;
+      }
+      .container {
+        max-width: 750px;
+        margin: 40px auto;
+        background: white;
+        padding: 25px 30px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+      }
+      h1,
+      h2,
+      h3 {
+        /* Добавил h3 для заголовков секций */
+        color: #1d3557; /* Темно-синий */
+        margin-bottom: 0.75em;
+      }
+      h1 {
+        text-align: center;
+        font-size: 1.8em;
+      }
+      h2 {
+        font-size: 1.4em;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 0.5em;
+      }
+      h3 {
+        /* Стили для заголовков секций вложений и комментариев */
+        font-size: 1.2em;
+        margin-top: 1.5em; /* Отступ сверху для новой секции */
+      }
+      form p {
+        margin-bottom: 18px;
+      }
+      label {
+        display: block;
+        margin-bottom: 6px;
+        font-weight: 600;
+        color: #495057;
+      }
+      input[type="text"],
+      input[type="email"] {
+        /* Убрал textarea, select, т.к. их нет на этой странице */
+        width: 100%; /* Полная ширина */
+        padding: 10px 12px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        box-sizing: border-box;
+        font-size: 1em;
+        /* transition убрал, т.к. он для :focus, а его тоже нет */
+      }
+      button[type="submit"] {
+        background-color: #007bff; /* Ярко-синий */
+        color: white;
+        padding: 10px 20px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 1em;
+        font-weight: 500;
+        /* transition убрал, т.к. он для :hover */
+      }
+      button[type="submit"]:hover {
+        background-color: #0056b3; /* Темнее синий */
+      }
+      .error-message {
+        color: #721c24; /* Темно-красный */
+        background-color: #f8d7da;
+        border: 1px solid #f5c6cb;
+        padding: 10px 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        font-weight: 500;
+      }
+      .ticket-details {
+        margin-top: 25px;
+        padding: 20px; /* Вернул padding, т.к. он общий для блока деталей */
+        border: 1px solid #e9ecef;
+        border-radius: 6px;
+        background-color: #f8f9fa;
+      }
+      .ticket-details p {
+        margin: 8px 0;
+        font-size: 0.95em;
+      }
+      .ticket-details strong {
+        color: #495057;
+        min-width: 120px; /* Для выравнивания */
+        display: inline-block;
+      }
+      .description-box {
+        white-space: pre-wrap;
+        background-color: #fff;
+        padding: 12px;
+        border: 1px solid #dee2e6;
+        border-radius: 4px;
+        margin-top: 5px;
+        font-family: "Courier New", Courier, monospace;
+        font-size: 0.9em;
+        max-height: 300px;
+        overflow-y: auto;
+        line-height: 1.5; /* Добавил для лучшей читаемости */
+      }
+      .nav-links {
+        margin-bottom: 25px;
+        text-align: center;
+        padding-bottom: 15px;
+        border-bottom: 1px solid #eee;
+      }
+      .nav-links a {
+        margin: 0 10px;
+        text-decoration: none;
+        color: #007bff;
+        font-weight: 500;
+        padding: 5px 0;
+      }
+      .nav-links a:hover {
+        text-decoration: underline;
+        color: #0056b3;
+      }
+      .footer-note {
+        text-align: center;
+        margin-top: 30px;
+        font-size: 0.85em;
+        color: #6c757d;
+      }
+      /* Стили для списка вложений и комментариев (добавленные/измененные) */
+      .attachments-list,
+      .comments-section {
+        margin-top: 20px;
+        padding-top: 15px;
+        border-top: 1px solid #e0e0e0; /* Более заметный разделитель секций */
+      }
+      .attachments-list ul,
+      .comments-section ul {
+        /* Для списка вложений у комментариев */
+        list-style-type: none;
+        padding-left: 0;
+        margin-top: 5px; /* Отступ для списков */
+      }
+      .attachments-list li {
+        margin-bottom: 8px;
+        padding: 5px 0;
+        border-bottom: 1px dotted #eee;
+      }
+      .attachments-list li:last-child {
+        border-bottom: none;
+      }
+      .attachments-list a {
+        text-decoration: none;
+        color: #0056b3;
+      }
+      .attachments-list a:hover {
+        text-decoration: underline;
+      }
+      .comment-item {
+        padding: 12px 15px;
+        background-color: #fff;
+        border: 1px solid #ddd; /* Чуть темнее рамка */
+        border-radius: 5px;
+        margin-bottom: 15px;
+      }
+      .comment-meta {
+        font-size: 0.85em;
+        color: #555;
+        margin-bottom: 8px;
+        padding-bottom: 5px;
+      }
+      .comment-meta strong {
+        color: #1d3557;
+        min-width: auto; /* Убираем min-width для имени автора в комментарии */
+      }
+      .comment-body {
+        white-space: pre-wrap; /* Сохраняет пробелы и переносы, как было */
+        font-size: 0.95em;
+        line-height: 1.5;
+        overflow-wrap: break-word; /* Добавляем это для переноса длинных слов/строк */
+        word-wrap: break-word; /* Синоним для обратной совместимости */
+        /* Дополнительно, если break-word не всегда справляется: */
+        /* word-break: break-all; */ /* Используй с осторожностью */
+      }
+      .comment-attachments {
+        margin-left: 20px;
+        margin-top: 10px;
+        font-size: 0.9em;
+      }
+      .comment-attachments ul li {
+        padding: 3px 0;
+        border-bottom: none; /* Убираем рамку для файлов у комментариев */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="nav-links">
+        <a href="{% url 'tickets:select_ticket_category' %}"
+          >Создать новую заявку</a
+        >
+        <a href="{% url 'tickets:check_ticket_status' %}"
+          >Проверить статус заявки</a
+        >
+      </div>
+
+      <h1>Проверить статус заявки</h1>
+
+      <form method="get" action="{% url 'tickets:check_ticket_status' %}">
+        <p>
+          <label for="id_ticket_number">Номер заявки:</label>
+          <input
+            type="text"
+            name="ticket_number"
+            id="id_ticket_number"
+            value="{{ ticket_number_query|default:'' }}"
+            required
+          />
+        </p>
+        <p>
+          <label for="id_reporter_email"
+            >Ваш Email (указанный при создании заявки):</label
+          >
+          <input
+            type="email"
+            name="reporter_email"
+            id="id_reporter_email"
+            value="{{ reporter_email_query|default:'' }}"
+            required
+          />
+        </p>
+        <button type="submit">Проверить</button>
+      </form>
+
+      {% if error_message %}
+      <p class="error-message">{{ error_message }}</p>
+      {% endif %} {% if ticket %}
+      <div class="ticket-details">
+        <h2>Детали заявки #{{ ticket.ticket_id_display }}</h2>
+        <p><strong>Тема:</strong> {{ ticket.title }}</p>
+        <p><strong>Статус:</strong> {{ ticket.status.name }}</p>
+        <p>
+          <strong>Приоритет:</strong> {% if ticket.priority %}{{
+          ticket.priority.name }}{% else %}Не назначен{% endif %}
+        </p>
+        <p><strong>Категория:</strong> {{ ticket.category.name }}</p>
+        <p>
+          <strong>Заявитель:</strong> {{ ticket.reporter_name }}
+          ({{ticket.reporter_email }})
+        </p>
+
+        {% if ticket.reporter_building %}
+        <p><strong>Корпус:</strong> {{ ticket.reporter_building }}</p>
+        {% endif %} {% if ticket.reporter_room %}
+        <p><strong>Кабинет:</strong> {{ ticket.reporter_room }}</p>
+        {% endif %} {% if ticket.reporter_department %}
+        <p><strong>Подразделение:</strong> {{ ticket.reporter_department }}</p>
+        {% endif %} {% if ticket.reporter_phone %}
+        <p><strong>Телефон:</strong> {{ ticket.reporter_phone }}</p>
+        {% endif %}
+
+        <p>
+          <strong>Исполнитель:</strong> {% if ticket.assignee %}{{
+          ticket.assignee.get_full_name|default:ticket.assignee.username }}{%
+          else %}Не назначен{% endif %}
+        </p>
+        <p><strong>Дата создания:</strong> {{ ticket.created_at}}</p>
+
+        <p><strong>Описание:</strong></p>
+        <div class="description-box">{{ ticket.description }}</div>
+
+        {% if attachments %}
+        <div class="attachments-list">
+          <h3>Прикрепленные файлы к заявке:</h3>
+          <ul>
+            {% for attachment in attachments %} {% if not attachment.comment %}
+            <li>
+              <a href="{{ attachment.file.url }}" target="_blank"
+                >{{ attachment }}</a
+              >
+              (Загружено: {{ attachment.uploaded_at }})
+            </li>
+            {% endif %} {% endfor %}
+          </ul>
+        </div>
+        {% endif %} {% if comments %}
+        <div class="comments-section">
+          <h3>Комментарии:</h3>
+          {% for comment in comments %}
+          <div class="comment-item">
+            <p class="comment-meta">
+              <strong>{{ comment.author_name_display}}</strong>
+              пишет ({{ comment.created_at }}):
+            </p>
+            <div class="comment-body">{{ comment.body }}</div>
+
+            {% if comment.attachments.all %}
+            <div class="comment-attachments">
+              <strong>Файлы к комментарию:</strong>
+              <ul>
+                {% for comment_attachment in comment.attachments.all %}
+                <li>
+                  <a href="{{ comment_attachment.file.url }}" target="_blank"
+                    >{{ comment_attachment }}</a
+                  >
+                </li>
+                {% endfor %}
+              </ul>
+            </div>
+            {% endif %}
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
+
+      <p class="footer-note">
+        Если у вас возникли вопросы, обратитесь в IT-отдел по тел. 41-00.
+      </p>
+    </div>
+  </body>
+</html>
