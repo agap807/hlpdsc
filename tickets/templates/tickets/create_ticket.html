@@ -3,7 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Создать заявку в IT-поддержку</title>
+    {# page_title теперь должен содержать информацию о категории и проекте из view #}
+    <title>{{ page_title|default:"Создать заявку в IT-поддержку" }}</title> 
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -39,6 +40,7 @@
       }
       input[type="text"],
       input[type="email"],
+      input[type="tel"], /* Добавил для телефона, если используется */
       textarea,
       select {
         width: 100%; /* Полная ширина */
@@ -55,11 +57,20 @@
       }
       input[type="text"]:focus,
       input[type="email"]:focus,
+      input[type="tel"]:focus,
       textarea:focus,
       select:focus {
         border-color: #80bdff;
         outline: 0;
         box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      }
+      input[type="file"] { /* Стили для поля файла, если они нужны */
+          margin-top: 5px;
+      }
+      .form-check-input { /* Для чекбоксов, если они есть в кастомных полях */
+          margin-left: 5px;
+          position: relative;
+          top: 2px;
       }
       button[type="submit"] {
         background-color: #007bff; /* Ярко-синий */
@@ -71,7 +82,7 @@
         font-size: 1em;
         font-weight: 500;
         transition: background-color 0.2s;
-        display: block; /* Чтобы кнопка занимала всю ширину, если нужно */
+        display: block; 
         width: 100%;
         margin-top: 10px;
       }
@@ -79,32 +90,35 @@
         background-color: #0056b3; /* Темнее синий */
       }
       .errorlist {
-        /* Стили для ошибок валидации формы */
         color: #721c24;
         list-style-type: none;
         padding-left: 0;
-        margin-top: 4px; /* Отступ от поля */
+        margin-top: 4px; 
         margin-bottom: 0;
         font-size: 0.85em;
       }
-      .messages {
-        /* Стили для сообщений Django (success, error, etc.) */
+      ul.messages { /* Стили для сообщений Django (success, error, etc.) */
         list-style-type: none;
         padding: 0;
         margin: 0 0 20px 0;
       }
-      .messages li {
+      ul.messages li {
         padding: 12px 15px;
         margin-bottom: 10px;
         border-radius: 4px;
         font-weight: 500;
+        text-align: left; /* Для читаемости */
       }
-      .messages li.success {
+      ul.messages li.success {
         background-color: #d4edda;
         color: #155724;
         border: 1px solid #c3e6cb;
       }
-      .messages li.error {
+      ul.messages li.success a { /* Стили для ссылок внутри success сообщений */
+          color: #0f3a1a;
+          font-weight: bold;
+      }
+      ul.messages li.error {
         background-color: #f8d7da;
         color: #721c24;
         border: 1px solid #f5c6cb;
@@ -130,36 +144,57 @@
         font-size: 0.8em;
         color: #6c757d;
         margin-top: 4px;
+        margin-bottom: 2px; /* Небольшой отступ снизу */
+      }
+      .form-field small.help-text { /* Если help_text выводится через {{ field.help_text }} */
+         display: block; /* Чтобы был на новой строке */
       }
     </style>
   </head>
   <body>
     <div class="container">
       <div class="nav-links">
-        <a href="{% url 'tickets:select_ticket_category' %}"
-          >Создать новую заявку</a
-        >
-        <a href="{% url 'tickets:check_ticket_status' %}"
-          >Проверить статус заявки</a
-        >
+        {# Ссылка на выбор категории, так как это вторая стадия создания тикета #}
+        <a href="{% url 'tickets:select_ticket_category' %}">Выбрать другую категорию</a>
+        <a href="{% url 'tickets:check_ticket_status' %}">Проверить статус заявки</a>
       </div>
 
-      <h1>Создать новую заявку в IT-поддержку</h1>
+      {# page_title теперь должен приходить из view и содержать название категории и проекта #}
+      <h1>{{ page_title|default:"Создание новой заявки" }}</h1>
 
       {% if messages %}
       <ul class="messages">
         {% for message in messages %}
-        <li class="{{ message.tags }}">{{ message }}</li>
+        {# format_html используется во view, так что здесь должно быть безопасно #}
+        <li class="{{ message.tags }}">{{ message|safe }}</li> 
         {% endfor %}
       </ul>
       {% endif %}
 
       <form method="post" enctype="multipart/form-data">
-        {% csrf_token %} {% for field in form %}
+        {% csrf_token %}
+        
+        {# Перебираем поля формы, включая динамически добавленные кастомные поля #}
+        {% for field in form %}
         <div class="form-field">
-          {{ field.label_tag }} {{ field }} {% if field.help_text %}
-          <div class="help-text">{{ field.help_text }}</div>
-          {% endif %} {% if field.errors %} {{ field.errors }} {% endif %}
+          {{ field.label_tag }}
+          
+          {# Специальное отображение для CheckboxInput, чтобы метка была рядом #}
+          {% if field.field.widget.input_type == 'checkbox' %}
+            {{ field }}
+            {% if field.help_text %}<small class="help-text" style="display: inline; margin-left: 5px;">{{ field.help_text }}</small>{% endif %}
+          {% else %}
+            {{ field }}
+            {% if field.help_text %}<small class="help-text">{{ field.help_text }}</small>{% endif %}
+          {% endif %}
+          
+          {% if field.errors %}
+            <div class="errorlist">
+              {% for error in field.errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
         </div>
         {% endfor %}
 

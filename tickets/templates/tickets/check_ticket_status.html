@@ -249,11 +249,40 @@
       <div class="ticket-details">
         <h2>Детали заявки #{{ ticket.ticket_id_display }}</h2>
         <p><strong>Тема:</strong> {{ ticket.title }}</p>
-        <p><strong>Статус:</strong> {{ ticket.status.name }}</p>
         <p>
-          <strong>Приоритет:</strong> {% if ticket.priority %}{{
-          ticket.priority.name }}{% else %}Не назначен{% endif %}
-        </p>
+    {# ----- ОТОБРАЖЕНИЕ СТАТУСА С ЦВЕТОМ ----- #}
+    <p>
+        <strong>Статус:</strong> 
+        {% if ticket.status and ticket.status.color %}
+            <span style="background-color: {{ ticket.status.color }}; 
+                         padding: 3px 8px; 
+                         border-radius: 4px; 
+                         color: white; {# Предполагаем, что фон темный, текст белый #}
+                         font-size: 0.9em;
+                         text-shadow: 0 0 2px rgba(0,0,0,0.4);">
+                {{ ticket.status.name }}
+            </span>
+        {% elif ticket.status %}
+            {{ ticket.status.name }}
+        {% else %}
+            Не указан
+        {% endif %}
+    </p>
+    {# ----- КОНЕЦ ОТОБРАЖЕНИЯ СТАТУСА ----- #}
+
+    {# ----- ОТОБРАЖЕНИЕ ПРИОРИТЕТА С ЦВЕТОМ ----- #}
+    <p>
+        <strong>Приоритет:</strong> 
+        {% if ticket.priority and ticket.priority.color %}
+            <span style="color: {{ ticket.priority.color }}; font-weight: bold;">
+                {{ ticket.priority.name }}
+            </span>
+        {% elif ticket.priority %}
+            <span style="font-weight: bold;">{{ ticket.priority.name }}</span>
+        {% else %}
+            Не назначен
+        {% endif %}
+    </p>
         <p><strong>Категория:</strong> {{ ticket.category.name }}</p>
         <p>
           <strong>Заявитель:</strong> {{ ticket.reporter_name }}
@@ -271,9 +300,8 @@
         {% endif %}
 
         <p>
-          <strong>Исполнитель:</strong> {% if ticket.assignee %}{{
-          ticket.assignee.get_full_name|default:ticket.assignee.username }}{%
-          else %}Не назначен{% endif %}
+          <strong>Исполнитель:</strong> {% if ticket.assignee %}{{ticket.assignee.get_full_name|default:ticket.assignee.username }}
+          {% else %}Не назначен{% endif %}
         </p>
         <p><strong>Дата создания:</strong> {{ ticket.created_at}}</p>
 

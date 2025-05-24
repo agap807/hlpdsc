@@ -1,10 +1,8 @@
 <!DOCTYPE html>
 <html lang="ru">
-  <head>
+<head>
     <meta charset="UTF-8" />
-    <title>
-      {{ page_title|default:"Список заявок" }} - Панель Агента Helpdesk
-    </title>
+    <title>{{ page_title|default:"Список заявок" }} - Панель Агента Helpdesk</title>
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
@@ -60,7 +58,7 @@
       }
       .main-content {
         flex: 1;
-        max-width: 1100px; /* Можно увеличить, если нужно шире таблица */
+        width: 1500px;
         margin: 30px auto;
         padding: 25px 30px;
         background: white;
@@ -85,10 +83,10 @@
         color: #0056b3;
         border-bottom: 2px solid #0056b3;
       }
-      .content-title {
+      .content-title { /* Для основного заголовка "Список заявок" */
         color: #1d3557;
         margin-top: 0;
-        margin-bottom: 1.2em;
+        /* margin-bottom: 1.2em; Управляется flex-контейнером */
         font-size: 1.8em;
       }
       .footer {
@@ -101,6 +99,9 @@
       }
 
       /* Стили для таблицы заявок */
+      .ticket-table-wrapper {
+          overflow-x: auto; /* Для горизонтального скролла таблицы на маленьких экранах */
+      }
       .ticket-table {
         width: 100%;
         border-collapse: collapse;
@@ -110,7 +111,7 @@
       .ticket-table th,
       .ticket-table td {
         border: 1px solid #ddd;
-        padding: 10px 12px;
+        padding: 8px 10px; /* Уменьшил padding для компактности */
         text-align: left;
         vertical-align: top;
       }
@@ -118,6 +119,7 @@
         background-color: #f8f9fa;
         color: #495057;
         font-weight: 600;
+        white-space: nowrap; /* Чтобы заголовки не переносились */
       }
       .ticket-table tbody tr:nth-child(even) {
         background-color: #fdfdfe;
@@ -132,25 +134,10 @@
       .ticket-table a:hover {
         text-decoration: underline;
       }
-      /* Классы для приоритетов - убедитесь, что ваши коды приоритетов (priority.code) 
-           соответствуют этим именам в нижнем регистре (например, 'low', 'medium', 'high') */
-      .priority-low {
-        color: green;
-        font-weight: bold;
-      }
-      .priority-medium {
-        color: orange;
-        font-weight: bold;
-      }
-      .priority-high {
-        color: red;
-        font-weight: bold;
-      }
-      .priority-urgent {
-        color: darkred;
-        font-weight: bold;
-        background-color: #ffe0e0;
-      } /* Пример для очень высокого */
+      .priority-low { color: green; font-weight: bold; }
+      .priority-medium { color: orange; font-weight: bold; }
+      .priority-high { color: red; font-weight: bold; }
+      .priority-urgent { color: darkred; font-weight: bold; background-color: #ffe0e0; }
 
       .no-tickets {
         padding: 20px;
@@ -158,21 +145,32 @@
         color: #6c757d;
         font-style: italic;
       }
+      
+      /* Стили для формы фильтров, если нужно дополнительно */
+      .ticket-filters-form .form-check-label {
+          font-size: 0.85rem; /* Компактнее метки чекбоксов */
+          vertical-align: middle;
+      }
+      .ticket-filters-form .form-check-input {
+          vertical-align: middle;
+      }
+      .filter-row-wrapper label { /* Метки для основных фильтров */
+          font-size: 0.85rem;
+          margin-bottom: .25rem;
+          display: block;
+          color: #495057;
+          font-weight: 500;
+      }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <div class="page-container">
       <header class="header">
         <h1>Helpdesk - Панель Агента</h1>
         <div class="user-info">
-          Добро пожаловать,
-          <strong>{{ request.user.get_full_name }}</strong>!
+          Добро пожаловать, <strong>{{ request.user.get_full_name|default:request.user.username }}</strong>!
           <a href="{% url 'admin:index' %}" target="_blank">Админ-панель</a>
-          <form
-            method="post"
-            action="{% url 'tickets:agent_logout' %}"
-            style="display: inline"
-          >
+          <form method="post" action="{% url 'tickets:agent_logout' %}" style="display: inline; margin-left: 15px;">
             {% csrf_token %}
             <button type="submit" class="logout-button">Выйти</button>
           </form>
@@ -181,108 +179,180 @@
 
       <main class="main-content">
         <nav class="main-nav">
-          <a href="{% url 'tickets:agent_dashboard' %}" 
-             class="{% if request.resolver_match.url_name == 'agent_dashboard' or request.resolver_match.url_name == 'agent_home' %}active{% endif %}">
-             Панель управления
-          </a>
-      
-          {% if request.user.is_staff %}
-              {% if request.user.role == 'admin' %}
-                  {# Ссылки для админа #}
-                  <a href="{% url 'tickets:agent_ticket_list' %}" 
-                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and not filter_line %}active{% endif %}">
-                     Все заявки (Админ)
-                  </a>
-                  <a href="{% url 'tickets:agent_ticket_list' %}?line=1" 
-                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and filter_line == '1' %}active{% endif %}">
-                     Заявки 1-й линии (Админ)
-                  </a>
-                  <a href="{% url 'tickets:agent_ticket_list' %}?line=2" 
-                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' and filter_line == '2' %}active{% endif %}">
-                     Заявки 2-й линии (Админ)
-                  </a>
-              {% elif request.user.is_first_line %}
-                  <a href="{% url 'tickets:agent_ticket_list' %}" 
-                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
-                     Заявки 1-й линии
-                  </a>
-              {% elif request.user.is_second_line %}
-                  <a href="{% url 'tickets:agent_ticket_list' %}" 
-                     class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
-                     Заявки 2-й линии
-                  </a>
-              {% elif not request.user.support_line %} {# Агент без линии, но не админ #}
-                   <a href="{% url 'tickets:agent_ticket_list' %}"
-                      class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">
-                      Доступные заявки
-                   </a>
-              {% endif %}
-          {% endif %}
-          
-          <a href="{% url 'tickets:agent_my_ticket_list' %}" 
-             class="{% if request.resolver_match.url_name == 'agent_my_ticket_list' %}active{% endif %}">
-             Мои заявки
-          </a>
-      </nav>
+            <a href="{% url 'tickets:agent_dashboard' %}" class="{% if request.resolver_match.url_name == 'agent_dashboard' %}active{% endif %}">Панель управления</a>
+            <a href="{% url 'tickets:agent_ticket_list' %}" class="{% if request.resolver_match.url_name == 'agent_ticket_list' %}active{% endif %}">Список заявок</a>
+            <a href="{% url 'tickets:agent_my_ticket_list' %}" class="{% if request.resolver_match.url_name == 'agent_my_ticket_list' %}active{% endif %}">Мои заявки</a>
         </nav>
 
-        <h2 class="content-title">{{ page_title|default:"Список заявок" }}</h2>
+        {# Оборачиваем все фильтры и заголовок в одну форму #}
+        <form method="get" action="{% url 'tickets:agent_ticket_list' %}" class="ticket-filters-form mb-4" id="ticketFilterForm">
 
-        {% if ticket_list %}
-        <table class="ticket-table">
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Тема</th>
-              <th>Статус</th>
-              <th>Приоритет</th>
-              <th>Категория</th>
-              <th>Заявитель</th>
-              <th>Исполнитель</th>
-              <th>Создана</th>
-              <th>Обновлена</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for ticket in ticket_list %}
-            <tr>
-              <td>
-                <a
-                  href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}"
-                  >{{ ticket.ticket_id_display }}</a
-                >
-              </td>
-              <td>
-                <a
-                  href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}"
-                  >{{ ticket.title|truncatechars:50 }}</a
-                >
-              </td>
-              <td>{{ ticket.status.name }}</td>
-              <td>
-                {% if ticket.priority %}
+            {# Верхний блок: Заголовок, Поиск, Чекбоксы, Кнопки #}
+            <div class="row align-items-center mb-3">
+                <div class="col-md-auto"> {# Заголовок #}
+                    <h2 class="content-title mb-0">Список заявок</h2>
+                </div>
+                
+                <div class="col-md"> 
+                    <div class="d-flex justify-content-end align-items-center flex-wrap"> {# flex-wrap для переноса на маленьких экранах #}
+                        {# Строка поиска #}
+                        <div class="me-sm-2 mb-2 mb-sm-0" style="min-width: 200px; flex-grow: 1; max-width:350px;">
+                             {# label можно скрыть visually-hidden, если placeholder понятен #}
+                             {# <label for="{{ filter_form.search_query.id_for_label }}" class="visually-hidden">Поиск</label> #}
+                            {{ filter_form.search_query }}
+                        </div>
+                        {# Чекбоксы #}
+                        <div class="form-check form-check-inline me-2 mb-2 mb-sm-0">
+                            {{ filter_form.show_active }} {# Сам инпут #}
+                            <label class="form-check-label" for="{{ filter_form.show_active.id_for_label }}">Активные</label>
+                        </div>
+                        <div class="form-check form-check-inline me-sm-3 mb-2 mb-sm-0">
+                            {{ filter_form.show_completed }} {# Сам инпут #}
+                            <label class="form-check-label" for="{{ filter_form.show_completed.id_for_label }}">Завершенные</label>
+                        </div>
+                        {# Кнопки #}
+                        <div class="d-flex mb-2 mb-sm-0">
+                            <button type="submit" class="btn btn-sm btn-primary me-1">Поиск/Фильтр</button>
+                            <a href="{% url 'tickets:agent_ticket_list' %}" class="btn btn-sm btn-outline-secondary">Сброс</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                <span
-                  class="priority-{{ ticket.priority.code|lower|default:'normal' }}"
-                  >{{ ticket.priority.name }}</span
-                >
-                {% else %} - {% endif %}
-              </td>
-              <td>{{ ticket.category.name }}</td>
-              <td>{{ ticket.reporter_name }}</td>
-              <td>{{ ticket.assignee.get_full_name }}</td>
-              <td>{{ ticket.created_at|date:"d.m.Y H:i" }}</td>
-              <td>{{ ticket.updated_at|date:"d.m.Y H:i" }}</td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-        {% else %}
-        <p class="no-tickets">Заявок в этом списке пока нет.</p>
-        {% endif %}
+            {# Основные фильтры в одну строку (или несколько, если не помещаются) #}
+            <div class="p-3 border rounded bg-light">
+                <div class="row g-2 align-items-end">
+                    <div class="col-lg col-md-4 col-sm-6"> {# Используем col-lg без номера для авто-ширины #}
+                        {{ filter_form.assignee }}
+                        {{ filter_form.category }} 
+                        {{ filter_form.status }}
+                        {{ filter_form.priority }}
+                        {{ filter_form.project }}
+                    </div>
+                </div>
+            </div>
+        </form>
+        {# --- Конец формы фильтров --- #}
+
+<div class="ticket-table-wrapper">
+  {% if ticket_list %}
+  <table class="ticket-table">
+    <thead>
+      <tr>
+        <th>ID</th>                       {# 1 #}
+        <th>Тема</th>                     {# 2 #}
+        <th>Статус</th>                   {# 3 (был 4) #}
+        <th>Исполнитель</th>              {# 4 (был 8) #}
+        <th>Приоритет</th>                {# 5 (был 5) #}
+        <th>Категория</th>                {# 6 (был 6) #}
+        <th>Заявитель</th>                {# 7 (был 7) #}
+        <th>Проект</th>                   {# 8 (был 3) #}
+        <th>Создана</th>                  {# 9 (был 9) #}
+        <th>Обновлена</th>                {# 10 (был 10) #}
+      </tr>
+    </thead>
+    <tbody>
+      {% for ticket in ticket_list %}
+      <tr>
+        <td><a href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}">{{ ticket.ticket_id_display }}</a></td> {# 1 #}
+        <td><a href="{% url 'tickets:agent_ticket_detail' ticket_pk=ticket.pk %}">{{ ticket.title|truncatechars:40 }}</a></td> {# 2 #}
+        <td> {# 3 - Статус #}
+            {% if ticket.status.color %}
+            <span style="background-color: {{ticket.status.color}}; padding: 3px 6px; border-radius: 4px; color: white; font-size: 0.85em; text-shadow: 0 0 2px rgba(0,0,0,0.3);">
+                {{ ticket.status.name }}
+            </span>
+            {% else %}
+                {{ ticket.status.name|default:"-" }}
+            {% endif %}
+        </td>
+        <td> {# 4 - Исполнитель #}
+          {% if ticket.assignee %}
+            {{ ticket.assignee.get_full_name|default:ticket.assignee.username }}
+          {% else %}
+            -
+          {% endif %}
+        </td>
+        <td> {# 5 - Приоритет #}
+          {% if ticket.priority %}
+          <span class="priority-{{ ticket.priority.code|lower|default:'normal' }}" style="color: {{ticket.priority.color|default:'inherit'}};">
+            {{ ticket.priority.name }}
+          </span>
+          {% else %} 
+            - 
+          {% endif %}
+        </td>
+        <td>{{ ticket.category.name|default:"-" }}</td> {# 6 - Категория #}
+        <td>{{ ticket.reporter_name|truncatechars:25 }}</td> {# 7 - Заявитель #}
+        <td>{{ ticket.project.name|default:"-" }}</td> {# 8 - Проект #}
+        <td style="white-space: nowrap;">{{ ticket.created_at|date:"d.m.y H:i" }}</td> {# 9 - Создана #}
+        <td style="white-space: nowrap;">{{ ticket.updated_at|date:"d.m.y H:i" }}</td> {# 10 - Обновлена #}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+          {% else %}
+            <p class="no-tickets">
+              {% if request.GET %}
+                По вашему запросу заявок не найдено. Попробуйте изменить параметры фильтрации.
+              {% else %}
+                Заявок в этом списке пока нет.
+              {% endif %}
+            </p>
+          {% endif %}
+        </div> {# Конец ticket-table-wrapper #}
+
+        {# Здесь можно добавить пагинацию, если она есть в контексте #}
+        {# {% if ticket_list.has_other_pages %}
+            <nav aria-label="Page navigation" class="mt-4">
+                <ul class="pagination justify-content-center">
+                    {% if ticket_list.has_previous %}
+                        <li class="page-item"><a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">« первая</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ ticket_list.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">предыдущая</a></li>
+                    {% endif %}
+
+                    <li class="page-item disabled"><a class="page-link" href="#">Страница {{ ticket_list.number }} из {{ ticket_list.paginator.num_pages }}.</a></li>
+
+                    {% if ticket_list.has_next %}
+                        <li class="page-item"><a class="page-link" href="?page={{ ticket_list.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">следующая</a></li>
+                        <li class="page-item"><a class="page-link" href="?page={{ ticket_list.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">последняя »</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+        {% endif %} #}
+
       </main>
 
-      <footer class="footer">© {% now "Y" %} Helpdesk System.</footer>
+      <footer class="footer">
+        © {% now "Y" %} Helpdesk System by Vladislav.
+      </footer>
     </div>
-  </body>
+</body>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const filterForm = document.getElementById('ticketFilterForm');
+    
+    if (filterForm) {
+        // Получаем все select'ы и checkbox'ы внутри формы, которые должны вызывать авто-сабмит
+        // Мы не хотим, чтобы текстовое поле поиска вызывало авто-сабмит при каждом вводе символа
+        const autoSubmitElements = filterForm.querySelectorAll('select, input[type="checkbox"]');
+
+        autoSubmitElements.forEach(function(element) {
+            // Пропускаем чекбоксы, если вы хотите, чтобы они работали только по кнопке "Поиск"
+            // В вашем запросе вы хотите, чтобы чекбоксы тоже авто-сабмитились, так что это условие не нужно:
+            // if (element.type === 'checkbox' && (element.id === 'showActiveTickets' || element.id === 'showCompletedTickets')) {
+            //     // Можно решить, авто-сабмитить чекбоксы или нет
+            // }
+
+            element.addEventListener('change', function() {
+                filterForm.submit(); // Отправляем форму
+            });
+        });
+
+        // Опционально: если вы хотите, чтобы текстовое поле поиска работало по Enter,
+        // но НЕ вызывало авто-сабмит при каждом изменении (что обычно и так работает),
+        // специального кода для него не нужно, если есть кнопка type="submit".
+        // Кнопка "Поиск/Фильтр" (type="submit") будет отправлять всю форму, включая значение из строки поиска.
+    }
+});
+</script>
 </html>
