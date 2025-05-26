@@ -143,10 +143,10 @@
                             {% endif %}
 
                             <hr style="border: 0; border-top: 1px solid #e0e0e0; margin: 15px 0;"/>
-                            <p><strong>Дата создания:</strong> {{ ticket.created_at|date:"d.m.Y H:i:s" }}</p>
-                            <p><strong>Последнее обновление:</strong> {{ ticket.updated_at|date:"d.m.Y H:i:s" }}</p>
-                            {% if ticket.resolved_at %}<p><strong>Дата решения:</strong> {{ ticket.resolved_at|date:"d.m.Y H:i:s" }}</p>{% endif %}
-                            {% if ticket.closed_at %}<p><strong>Дата закрытия:</strong> {{ ticket.closed_at|date:"d.m.Y H:i:s" }}</p>{% endif %}
+                            <p><strong>Дата создания:</strong> {{ ticket.created_at|date:"d.m.Y H:i" }}</p>
+                            <p><strong>Дата обновления:</strong> {{ ticket.updated_at|date:"d.m.Y H:i" }}</p>
+                            {% if ticket.resolved_at %}<p><strong>Дата решения:</strong> {{ ticket.resolved_at|date:"d.m.Y H:i" }}</p>{% endif %}
+                            {% if ticket.closed_at %}<p><strong>Дата закрытия:</strong> {{ ticket.closed_at|date:"d.m.Y H:i" }}</p>{% endif %}
                             
                             <h4>Описание проблемы:</h4>
                             <div class="description-box">{{ ticket.description|linebreaksbr }}</div>

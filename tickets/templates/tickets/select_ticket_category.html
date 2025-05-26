@@ -1,158 +1,205 @@
+{% load static %}
+{% comment %} Файл: tickets/templates/tickets/select_ticket_category.html {% endcomment %}
 <!DOCTYPE html>
 <html lang="ru">
   <head>
     <meta charset="UTF-8" />
-    <title>{{ page_title }}</title>
-    {# ... (твои стили, можно скопировать из create_ticket.html) ... #}
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ page_title|default:"Шаг 1: Выбор категории заявки" }} - Helpdesk</title> 
     <style>
       body {
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
           "Helvetica Neue", Arial, sans-serif;
-        margin: 20px;
+        margin: 0;
+        padding: 20px; /* Добавил отступы для всего body */
         background-color: #f0f2f5;
         color: #333;
         line-height: 1.6;
+        display: flex; /* Для центрирования контейнера */
+        justify-content: center;
+        align-items: flex-start; /* Контейнер будет сверху, если контента мало */
+        min-height: 95vh; /* Чтобы контейнер мог быть по центру */
       }
       .container {
         max-width: 750px;
-        margin: 40px auto;
+        width: 100%; /* Чтобы контейнер не был слишком узким на больших экранах, но мог сжиматься */
+        margin: 20px auto; /* Небольшой отступ сверху/снизу, авто по бокам */
         background: white;
-        padding: 25px 30px;
+        padding: 25px 35px; /* Увеличил паддинг для "воздуха" */
         border-radius: 8px;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
       }
       h1 {
         color: #1d3557; /* Темно-синий */
-        margin-bottom: 1em;
+        margin-top: 0; /* Убрал верхний отступ, т.к. есть у контейнера */
+        margin-bottom: 1.2em; /* Чуть больше отступ снизу */
         text-align: center;
-        font-size: 1.8em;
+        font-size: 1.9em; /* Чуть больше заголовок */
       }
-      form div.form-field {
-        /* Обертка для каждого поля + метки + ошибки */
-        margin-bottom: 18px;
+      .category-select-form {
+          margin-bottom: 25px; /* Отступ после формы выбора категории */
       }
-      label {
-        display: block;
-        margin-bottom: 6px;
-        font-weight: 600;
-        color: #495057;
+      .form-check { /* Стили для обертки радио-кнопки и метки */
+          padding: 10px 12px;
+          margin-bottom: 8px;
+          border: 1px solid #e0e0e0;
+          border-radius: 5px;
+          background-color: #f9f9f9;
+          transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
       }
-      input[type="text"],
-      input[type="email"],
-      textarea,
-      select {
-        width: 100%; /* Полная ширина */
-        padding: 10px 12px;
-        border: 1px solid #ced4da;
-        border-radius: 4px;
-        box-sizing: border-box;
-        font-size: 1em;
-        transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+      .form-check:hover {
+          background-color: #f0f0f0;
+          border-color: #cccccc;
       }
-      textarea {
-        resize: vertical;
-        min-height: 100px;
+      .form-check input[type="radio"] {
+          margin-right: 10px;
+          vertical-align: middle;
       }
-      input[type="text"]:focus,
-      input[type="email"]:focus,
-      textarea:focus,
-      select:focus {
-        border-color: #80bdff;
-        outline: 0;
-        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+      .form-check label {
+          font-weight: 500; /* Немного жирнее текст метки */
+          color: #333;
+          vertical-align: middle;
+          cursor: pointer; /* Показываем, что на метку можно нажать */
+      }
+      .help-text-category { /* Отдельный стиль для help_text категории */
+        font-size: 0.9em;
+        color: #555; /* Чуть темнее */
+        margin-top: 8px;
+        margin-bottom: 20px; /* Отступ перед кнопкой "Далее" */
+        padding-left: 5px; /* Небольшой отступ, если текст длинный */
+        line-height: 1.4;
       }
       button[type="submit"] {
         background-color: #007bff; /* Ярко-синий */
         color: white;
-        padding: 10px 20px;
+        padding: 12px 25px; /* Кнопка чуть больше */
         border: none;
-        border-radius: 4px;
+        border-radius: 5px;
         cursor: pointer;
-        font-size: 1em;
+        font-size: 1.05em; /* Текст на кнопке чуть больше */
         font-weight: 500;
         transition: background-color 0.2s;
-        display: block; /* Чтобы кнопка занимала всю ширину, если нужно */
+        display: block; 
         width: 100%;
-        margin-top: 10px;
+        margin-top: 15px; /* Отступ кнопки от последнего элемента формы */
       }
       button[type="submit"]:hover {
         background-color: #0056b3; /* Темнее синий */
       }
       .errorlist {
-        /* Стили для ошибок валидации формы */
-        color: #721c24;
+        color: #d9534f; /* Красный для ошибок */
         list-style-type: none;
-        padding-left: 0;
-        margin-top: 4px; /* Отступ от поля */
-        margin-bottom: 0;
-        font-size: 0.85em;
+        padding: 8px 0 0 5px; /* Отступ для ошибок */
+        margin: 0;
+        font-size: 0.9em;
+        font-weight: bold;
       }
-      .messages {
-        /* Стили для сообщений Django (success, error, etc.) */
+      ul.messages { 
         list-style-type: none;
         padding: 0;
         margin: 0 0 20px 0;
       }
-      .messages li {
+      ul.messages li {
         padding: 12px 15px;
         margin-bottom: 10px;
         border-radius: 4px;
         font-weight: 500;
+        text-align: left; 
       }
-      .messages li.success {
-        background-color: #d4edda;
-        color: #155724;
-        border: 1px solid #c3e6cb;
-      }
-      .messages li.error {
-        background-color: #f8d7da;
-        color: #721c24;
-        border: 1px solid #f5c6cb;
-      }
-      .nav-links {
-        margin-bottom: 25px;
+      ul.messages li.success {background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb;}
+      ul.messages li.success a {color: #0f3a1a; font-weight: bold;}
+      ul.messages li.error {background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb;}
+      
+      .nav-links-bottom { /* Для ссылок под основной формой */
+        margin-top: 30px;
         text-align: center;
-        padding-bottom: 15px;
-        border-bottom: 1px solid #eee;
+        font-size: 0.95em;
       }
-      .nav-links a {
-        margin: 0 10px;
-        text-decoration: none;
+      .nav-links-bottom a {
         color: #007bff;
-        font-weight: 500;
-        padding: 5px 0;
+        text-decoration: none;
+        margin: 0 10px;
       }
-      .nav-links a:hover {
+      .nav-links-bottom a:hover {
         text-decoration: underline;
         color: #0056b3;
       }
-      .help-text {
-        font-size: 0.8em;
-        color: #6c757d;
-        margin-top: 4px;
+
+      .feedback-link-section {
+          text-align: center;
+          margin-top: 35px; 
+          padding-top: 25px; 
+          border-top: 1px solid #e0e0e0; 
+      }
+      .feedback-link-section p {
+          margin-bottom: 12px;
+          font-size: 1em; /* Текст чуть крупнее */
+          color: #495057;
+      }
+      .feedback-link-section a.feedback-button { /* Дадим кнопке класс для стилизации */
+          display: inline-block;
+          text-decoration: none;
+          background-color: #6c757d; 
+          color: white;
+          padding: 10px 22px;
+          border-radius: 5px;
+          font-weight: 500;
+          transition: background-color 0.2s ease-in-out;
+          font-size: 0.95em; /* Размер текста на кнопке */
+      }
+      .feedback-link-section a.feedback-button:hover {
+          background-color: #545b62;
       }
     </style>
   </head>
   <body>
     <div class="container">
-      <h1>{{ page_title }}</h1>
+      <h1>{{ page_title|default:"Шаг 1: Выберите категорию вашей проблемы" }}</h1>
+
       {% if messages %}
       <ul class="messages">
         {% for message in messages %}
-        <li class="{{ message.tags }}">{{ message }}</li>
+        <li class="{{ message.tags }}">{{ message|safe }}</li> 
         {% endfor %}
       </ul>
       {% endif %}
 
       <form method="post" class="category-select-form">
-        {% csrf_token %} {{ form.as_p }}
-        <button type="submit">Далее</button>
+        {% csrf_token %} 
+        
+        {% comment %} 
+        Предполагается, что form.category использует RadioSelect. 
+        Если нет, то form.category.as_p или просто {{ form.category }} может быть достаточно.
+        Этот цикл дает больше контроля над разметкой каждого радио-инпута.
+        {% endcomment %}
+        {% if form.category %}
+            {% for radio in form.category %}
+            <div class="form-check">
+                {{ radio.tag }} 
+                <label for="{{ radio.id_for_label }}">{{ radio.choice_label }}</label>
+            </div>
+            {% endfor %}
+            {% if form.category.errors %}
+                <div class="errorlist">{{ form.category.errors }}</div>
+            {% endif %}
+            {% if form.category.help_text %}
+                <p class="help-text-category">{{ form.category.help_text }}</p>
+            {% endif %}
+        {% else %}
+            <p>Нет доступных категорий для выбора. Обратитесь к администратору.</p>
+        {% endif %}
+
+        <button type="submit"{% if not form.category %} disabled{% endif %}>Далее</button>
       </form>
-      <p style="margin-top: 20px">
-        <a href="{% url 'tickets:check_ticket_status' %}"
-          >Проверить статус существующей заявки</a
-        >
-      </p>
+
+      <div class="feedback-link-section">
+        <p>Если ваше обращение не связано с технической проблемой или вы хотите оставить жалобу или предложение:</p>
+        <a href="{% url 'tickets:feedback_form' %}" class="feedback-button">Перейти к форме жалоб и предложений</a>
+      </div>
+
+      <div class="nav-links-bottom">
+        <a href="{% url 'tickets:check_ticket_status' %}">Проверить статус существующей заявки</a>
+      </div>
     </div>
   </body>
 </html>

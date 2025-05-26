@@ -4,6 +4,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 import os
+from django.template import Context, Template as DjangoTemplate # Для рендеринга шаблонов писем
 
 # ------------------- Модель Проекта (Отдела) -------------------
 class Project(models.Model):
@@ -42,7 +43,7 @@ class Agent(AbstractUser):
     AGENT_ROLE_CHOICES = [
         ('agent', 'Агент проекта'),
         ('project_manager', 'Руководитель проекта'),
-        ('system_admin', 'Администратор системы'), # Роль для расширенных прав в приложении
+        ('system_admin', 'Администратор системы'),
     ]
     agent_role = models.CharField(
         max_length=20,
@@ -72,7 +73,7 @@ class Agent(AbstractUser):
         return self.agent_role == 'project_manager'
 
     @property
-    def is_system_admin(self): # Если добавили роль system_admin
+    def is_system_admin(self):
         return self.agent_role == 'system_admin'
 
 # ------------------- Справочники для Тикетов -------------------
@@ -193,7 +194,7 @@ class Ticket(models.Model):
     reporter_building = models.CharField(max_length=100, blank=True, null=True, verbose_name="Корпус")
     reporter_room = models.CharField(max_length=50, blank=True, null=True, verbose_name="Комната/Кабинет")
     reporter_department = models.CharField(max_length=150, blank=True, null=True, verbose_name="Подразделение")
-    reporter_ip_address = models.GenericIPAddressField(verbose_name="IP-адрес заявителя", null=True, blank=True) # <--- НОВОЕ ПОЛЕ
+    reporter_ip_address = models.GenericIPAddressField(verbose_name="IP-адрес заявителя", null=True, blank=True)
 
     ticket_id_display = models.CharField(max_length=20, unique=True, blank=True, verbose_name="ID тикета")
     project = models.ForeignKey(Project, on_delete=models.PROTECT, related_name='tickets', verbose_name="Проект (отдел)")
@@ -210,7 +211,6 @@ class Ticket(models.Model):
     closed_at = models.DateTimeField(null=True, blank=True, verbose_name="Дата закрытия")
 
     def generate_ticket_id(self):
-        # (Ваша логика генерации ID с отладкой или без - оставляю вашу последнюю рабочую версию)
         current_year = timezone.now().year
         project_code = "N_A"; next_num_for_project = 1
         if self.project:
@@ -235,9 +235,9 @@ class Ticket(models.Model):
                 else: self.ticket_id_display = f"TEMP-{timezone.now().strftime('%Y%m%d%H%M%S%f')}"
             if not self.priority_id:
                 try:
-                    default_priority = TicketPriority.objects.get(code='NORMAL') # Убедитесь, что код 'NORMAL' существует
+                    default_priority = TicketPriority.objects.get(code='NORMAL')
                     self.priority = default_priority
-                except TicketPriority.DoesNotExist: pass # Можно добавить логирование или сообщение
+                except TicketPriority.DoesNotExist: pass
         
         if self.status: 
             if self.status.is_resolved_status and not self.resolved_at: self.resolved_at = timezone.now()
@@ -259,7 +259,7 @@ class Comment(models.Model):
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name='comments', verbose_name="Тикет")
     author_agent = models.ForeignKey(Agent, on_delete=models.SET_NULL, null=True, blank=True, related_name='ticket_comments', verbose_name="Автор (сотрудник)")
     author_name_display = models.CharField(max_length=255, blank=True, verbose_name="Имя автора (для отображения)")
-    author_ip_address = models.GenericIPAddressField(verbose_name="IP-адрес автора комментария", null=True, blank=True) # <--- НОВОЕ ПОЛЕ
+    author_ip_address = models.GenericIPAddressField(verbose_name="IP-адрес автора комментария", null=True, blank=True)
     body = models.TextField(verbose_name="Текст комментария")
     is_internal = models.BooleanField(default=False, verbose_name="Внутренний комментарий")
     created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
@@ -312,3 +312,120 @@ class Attachment(models.Model):
 
     def __str__(self): 
         return os.path.basename(self.file.name) if self.file else "Пустое вложение"
+
+# ------------------- Модели для Настроек Email Уведомлений -------------------
+class EmailSettings(models.Model):
+    is_active = models.BooleanField(
+        default=False, 
+        verbose_name="Включить отправку Email уведомлений",
+        help_text="Если неактивно, никакие email отправляться не будут, даже если отдельные уведомления включены."
+    )
+    smtp_host = models.CharField(max_length=255, verbose_name="SMTP Хост")
+    smtp_port = models.PositiveIntegerField(default=587, verbose_name="SMTP Порт")
+    smtp_user = models.CharField(max_length=255, blank=True, null=True, verbose_name="SMTP Пользователь (логин)")
+    smtp_password = models.CharField(
+        max_length=255, blank=True, null=True, verbose_name="SMTP Пароль",
+        help_text="Оставьте пустым, если аутентификация не требуется. ВНИМАНИЕ: Пароль будет храниться в базе данных."
+    )
+    use_tls = models.BooleanField(default=True, verbose_name="Использовать STARTTLS")
+    use_ssl = models.BooleanField(default=False, verbose_name="Использовать SSL/TLS (прямое соединение)")
+    default_from_email = models.EmailField(verbose_name="Email отправителя по умолчанию", help_text="Например, 'noreply@yourdomain.com' или 'helpdesk@yourdomain.com'")
+    test_email_recipient = models.EmailField(
+        blank=True, null=True, 
+        verbose_name="Email для тестового письма", 
+        help_text="Укажите email для отправки тестового сообщения при сохранении настроек."
+    )
+
+    class Meta:
+        verbose_name = "Настройки Email (SMTP)"
+        verbose_name_plural = "Настройки Email (SMTP)"
+
+    def __str__(self):
+        return f"Настройки Email (SMTP) - {'Активны' if self.is_active else 'Неактивны'}"
+
+    def clean(self):
+        if self.use_tls and self.use_ssl:
+            raise ValidationError("Нельзя одновременно использовать STARTTLS и SSL/TLS (прямое соединение). Выберите что-то одно.")
+        if self.is_active:
+            active_configs = EmailSettings.objects.filter(is_active=True).exclude(pk=self.pk)
+            if active_configs.exists():
+                raise ValidationError(
+                    "Уже существует активная конфигурация Email. "
+                    "Пожалуйста, деактивируйте другую или отредактируйте существующую."
+                )
+
+class NotificationTemplate(models.Model):
+    event_code = models.SlugField(
+        max_length=100, unique=True, 
+        verbose_name="Код события (для системы)",
+        help_text="Уникальный идентификатор события, например, 'new_ticket_for_user', 'new_comment_for_agent'."
+    )
+    name = models.CharField(max_length=255, verbose_name="Название уведомления (для админки)")
+    description = models.TextField(blank=True, null=True, verbose_name="Описание (когда срабатывает)")
+    is_active = models.BooleanField(default=True, verbose_name="Уведомление активно")
+    recipient_type = models.CharField(
+        max_length=20, 
+        choices=[
+            ('user', 'Пользователь (заявитель)'), 
+            ('agent', 'Агент (исполнитель)'),
+            ('project_email', 'Email проекта'),
+            ('all_project_agents', 'Все агенты проекта'),
+        ],
+        verbose_name="Тип получателя"
+    )
+    subject_template = models.CharField(
+        max_length=255, 
+        verbose_name="Шаблон темы письма",
+        help_text="Можно использовать переменные Django шаблонов, например: {{ ticket.ticket_id_display }}"
+    )
+    body_template_html = models.TextField(
+        verbose_name="Шаблон тела письма (HTML)",
+        help_text="Можно использовать переменные Django шаблонов. Например: <p>Заявка {{ ticket.title }} создана.</p>"
+    )
+
+    class Meta:
+        ordering = ['name']
+        verbose_name = "Шаблон Email уведомления"
+        verbose_name_plural = "Шаблоны Email уведомлений"
+
+    def __str__(self):
+        return f"{self.name} ({self.event_code}) - {'Активно' if self.is_active else 'Неактивно'}"
+
+    def render_subject(self, context_data):
+        template = DjangoTemplate(self.subject_template)
+        context = Context(context_data)
+        return template.render(context)
+
+    def render_body_html(self, context_data):
+        template = DjangoTemplate(self.body_template_html)
+        context = Context(context_data)
+        return template.render(context)
+
+# ------------------- Модель для Жалоб и Предложений -------------------
+class Feedback(models.Model):
+    FEEDBACK_TYPE_CHOICES = [
+        ('complaint', 'Жалоба'),
+        ('suggestion', 'Предложение'),
+        ('other', 'Другое'),
+    ]
+    feedback_type = models.CharField(
+        max_length=20,
+        choices=FEEDBACK_TYPE_CHOICES,
+        default='suggestion',
+        verbose_name="Тип обращения"
+    )
+    name = models.CharField(max_length=255, verbose_name="Ваше имя (или анонимно)")
+    email = models.EmailField(verbose_name="Ваш Email (для возможной обратной связи)", blank=True, null=True)
+    subject = models.CharField(max_length=255, verbose_name="Тема")
+    message = models.TextField(verbose_name="Текст обращения")
+    submitted_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата отправки")
+    is_reviewed = models.BooleanField(default=False, verbose_name="Рассмотрено")
+    reviewer_notes = models.TextField(blank=True, null=True, verbose_name="Заметки рассмотревшего (внутренние)")
+    
+    class Meta:
+        ordering = ['-submitted_at']
+        verbose_name = "Жалоба или предложение"
+        verbose_name_plural = "Жалобы и предложения"
+
+    def __str__(self):
+        return f"{self.get_feedback_type_display()}: {self.subject} от {self.name or 'Аноним'} ({self.submitted_at.strftime('%d.%m.%Y %H:%M')})"
